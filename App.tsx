@@ -157,7 +157,7 @@ const App: React.FC = () => {
       {appState === AppState.RUNNING && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="bg-stone-950/50 backdrop-blur-md border border-stone-800 rounded-full px-6 py-2 shadow-lg">
-             <p className="text-amber-500 font-mono text-sm tracking-widest uppercase">
+             <p className="text-orange-500 font-mono text-sm tracking-widest uppercase">
                {debugText}
              </p>
           </div>

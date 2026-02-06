@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
-import { PARTICLE_COUNT, SPHERE_RADIUS, EXPLOSION_RADIUS, COLOR_CORE } from '../constants';
+import { PARTICLE_COUNT, SPHERE_RADIUS, EXPLOSION_RADIUS, COLOR_CORE, COLOR_OUTER } from '../constants';
 
 export class SceneController {
   private scene: THREE.Scene;
@@ -30,12 +30,12 @@ export class SceneController {
     this.renderer = new THREE.WebGLRenderer({ 
       canvas, 
       antialias: true, 
-      alpha: true, // Critical for transparency
+      alpha: true, // Critical: Allows CSS background (video) to show through
       powerPreference: "high-performance"
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0x000000, 0); // Clear to fully transparent black
+    this.renderer.setClearColor(0x000000, 0); // Explicitly clear to transparent
 
     // Initialize data
     this.spherePositions = new Float32Array(PARTICLE_COUNT * 3);
@@ -50,10 +50,10 @@ export class SceneController {
   }
 
   private initLighting() {
-    const ambientLight = new THREE.AmbientLight(0xffaa00, 0.5);
+    const ambientLight = new THREE.AmbientLight(0x4a1a0a, 0.5); // Deep Orange/Brown Ambient
     this.scene.add(ambientLight);
 
-    const pointLight = new THREE.PointLight(0xff4500, 2, 50);
+    const pointLight = new THREE.PointLight(0xffffff, 2, 50); // White Point Light
     pointLight.position.set(2, 2, 5);
     this.scene.add(pointLight);
   }
@@ -65,7 +65,7 @@ export class SceneController {
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const i3 = i * 3;
 
-      // 1. Sphere Shape (using spherical coordinates for even distribution)
+      // 1. Sphere Shape
       const phi = Math.acos(-1 + (2 * i) / PARTICLE_COUNT);
       const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
 
@@ -77,7 +77,7 @@ export class SceneController {
       this.spherePositions[i3 + 1] = sy;
       this.spherePositions[i3 + 2] = sz;
 
-      // 2. Explosion Shape (Random outward vectors)
+      // 2. Explosion Shape
       const u = Math.random();
       const v = Math.random();
       const thetaR = 2 * Math.PI * u;
@@ -99,12 +99,12 @@ export class SceneController {
     // Material
     const material = new THREE.PointsMaterial({
       color: COLOR_CORE,
-      size: 0.08,
+      size: 0.15, // Slightly larger to compensate for lack of bloom
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.9, // More opaque
       blending: THREE.AdditiveBlending,
       sizeAttenuation: true,
-      depthWrite: false, // Helps with blending and transparency
+      depthWrite: false, 
     });
 
     this.particles = new THREE.Points(geometry, material);
@@ -116,16 +116,12 @@ export class SceneController {
     const vec = new THREE.Vector3();
     const pos = new THREE.Vector3();
     
-    vec.set(
-        (x * 2) - 1,
-        -(y * 2) + 1,
-        0.5 );
-
-    vec.unproject( this.camera );
-    vec.sub( this.camera.position ).normalize();
+    vec.set((x * 2) - 1, -(y * 2) + 1, 0.5);
+    vec.unproject(this.camera);
+    vec.sub(this.camera.position).normalize();
 
     const distance = -this.camera.position.z / vec.z;
-    pos.copy( this.camera.position ).add( vec.multiplyScalar( distance ) );
+    pos.copy(this.camera.position).add(vec.multiplyScalar(distance));
 
     // Smoothly interpolate the group position
     if (this.particles) {
@@ -156,20 +152,20 @@ export class SceneController {
   }
 
   private handleResize = () => {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(width, height);
   };
 
   private animate = () => {
     this.frameId = requestAnimationFrame(this.animate);
 
     if (this.particles) {
-      // Rotation for visual flair
       this.particles.rotation.y += 0.002;
       this.particles.rotation.z += 0.001;
 
-      // Interpolate positions based on explosionFactor
       const positions = this.particles.geometry.attributes.position.array as Float32Array;
       const factor = this.explosionFactor.value;
 
@@ -183,13 +179,10 @@ export class SceneController {
 
       this.particles.geometry.attributes.position.needsUpdate = true;
       
-      // Dynamic color shift
+      // Dynamic color shift using Lerp for smoothness
       const mat = this.particles.material as THREE.PointsMaterial;
-      if (factor > 0.5) {
-          mat.color.setHex(0xffaa00); // More yellow when exploded
-      } else {
-          mat.color.setHex(0xff4500); // Redder when compact
-      }
+      const targetColor = new THREE.Color(factor > 0.5 ? COLOR_OUTER : COLOR_CORE);
+      mat.color.lerp(targetColor, 0.1);
     }
 
     this.renderer.render(this.scene, this.camera);
